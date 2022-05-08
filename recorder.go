@@ -103,7 +103,7 @@ func (rec *Recorder) tpsHist() []float64 {
 	f64Hist := make([]float64, len(hist))
 
 	for i, v := range hist {
-		f64Hist[i] = float64(v)
+		f64Hist[i] = float64(v) / float64(rec.stmtSize)
 	}
 
 	return f64Hist
@@ -176,10 +176,7 @@ func (rec *Recorder) Report() (rr *RecorderReport) {
 	}
 
 	rr.Response = t.Calc()
-	minQPS, maxQPS, medianQPS := rec.qps()
-	rr.MinTPS = minQPS / float64(rec.stmtSize)
-	rr.MaxTPS = maxQPS / float64(rec.stmtSize)
-	rr.MedianTPS = medianQPS / float64(rec.stmtSize)
+	rr.MinTPS, rr.MaxTPS, rr.MedianTPS = rec.qps()
 
 	return
 }
