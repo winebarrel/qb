@@ -19,6 +19,7 @@ const (
 	NBranches            = 1
 	NTellers             = 10
 	NAccounts            = 100000
+	InsertChunkSize      = 1000
 )
 
 var initCreateStmts = []string{
@@ -35,39 +36,33 @@ var initAnalyzeStmts = []string{
 	"ANALYZE TABLE qb_branches",
 }
 
-var initInsertStmts = map[string]func(n int) string{
-	"INSERT INTO qb_branches (bid, bbalance) VALUES ": func(n int) string {
-		min := NBranches*n + 1
-		max := NBranches * (n + 1)
-		values := make([]string, 0, n)
+var initInsertStmts = map[string]func(n int) []string{
+	"INSERT INTO qb_branches (bid, bbalance) VALUES ": func(scale int) []string {
+		values := make([]string, 0, NBranches*scale)
 
-		for i := min; i <= max; i++ {
+		for i := 1; i <= NBranches*scale; i++ {
 			values = append(values, fmt.Sprintf("(%d, 0)", i))
 		}
 
-		return strings.Join(values, ",")
+		return values
 	},
-	"INSERT INTO qb_tellers (tid, bid, tbalance) VALUES ": func(n int) string {
-		min := NTellers*n + 1
-		max := NTellers * (n + 1)
-		values := make([]string, 0, n)
+	"INSERT INTO qb_tellers (tid, bid, tbalance) VALUES ": func(scale int) []string {
+		values := make([]string, 0, NTellers*scale)
 
-		for i := min; i <= max; i++ {
+		for i := 1; i <= NTellers*scale; i++ {
 			values = append(values, fmt.Sprintf("(%d, (%d - 1) / %d + 1, 0)", i, i, NTellers))
 		}
 
-		return strings.Join(values, ",")
+		return values
 	},
-	"INSERT INTO qb_accounts (aid, bid, abalance, filler) VALUES ": func(n int) string {
-		min := NAccounts*n + 1
-		max := NAccounts * (n + 1)
-		values := make([]string, 0, n)
+	"INSERT INTO qb_accounts (aid, bid, abalance, filler) VALUES ": func(scale int) []string {
+		values := make([]string, 0, NAccounts*scale)
 
-		for i := min; i <= max; i++ {
+		for i := 1; i <= NAccounts*scale; i++ {
 			values = append(values, fmt.Sprintf("(%d, (%d - 1) / %d + 1, 0, '')", i, i, NAccounts))
 		}
 
-		return strings.Join(values, ",")
+		return values
 	},
 }
 
@@ -177,9 +172,17 @@ func (task *Task) setupTables(db DB) error {
 		}
 	}
 
-	for prefix, values := range initInsertStmts {
-		for n := 0; n < task.Scale; n++ {
-			stmt := prefix + values(n)
+	for prefix, bldr := range initInsertStmts {
+		values := bldr(task.Scale)
+
+		for i := 0; i >= len(values); i += InsertChunkSize {
+			to := i + InsertChunkSize
+
+			if len(values) < to {
+				to = len(values)
+			}
+
+			stmt := prefix + strings.Join(values[i:to], ",")
 			_, err := db.Exec(stmt)
 
 			if err != nil {
