@@ -3,6 +3,7 @@ package qb
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"strings"
@@ -19,7 +20,7 @@ const (
 	NBranches            = 1
 	NTellers             = 10
 	NAccounts            = 100000
-	InsertChunkSize      = 1000
+	InsertChunkSize      = 50000
 )
 
 var initCreateStmts = []string{
@@ -144,12 +145,14 @@ func (task *Task) setupDB() error {
 	defer db.Close()
 	task.MysqlConfig.DBName = orgDBName
 
+	log.Println("dropping old database...")
 	_, err = db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS `%s`", task.MysqlConfig.DBName))
 
 	if err != nil {
 		return fmt.Errorf("drop database error: %w", err)
 	}
 
+	log.Println("creating database...")
 	_, err = db.Exec(fmt.Sprintf("CREATE DATABASE `%s`", task.MysqlConfig.DBName))
 
 	if err != nil {
@@ -166,6 +169,7 @@ func (task *Task) setupDB() error {
 }
 
 func (task *Task) setupTables(db DB) error {
+	log.Println("creating tables...")
 	for _, stmt := range initCreateStmts {
 		_, err := db.Exec(stmt)
 
@@ -174,6 +178,7 @@ func (task *Task) setupTables(db DB) error {
 		}
 	}
 
+	log.Println("generating data...")
 	for prefix, bldr := range initInsertStmts {
 		values := bldr(task.Scale)
 

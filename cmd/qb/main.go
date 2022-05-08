@@ -4,9 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/winebarrel/qb"
 )
+
+func init() {
+	log.SetOutput(os.Stderr)
+	log.SetFlags(0)
+}
 
 func main() {
 	flags := parseFlags()
