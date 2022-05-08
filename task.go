@@ -288,33 +288,6 @@ func (task *Task) Run() (*Recorder, error) {
 	return rec, nil
 }
 
-func (task *Task) Close() error {
-	err := task.teardownDB()
-
-	if err != nil {
-		return fmt.Errorf("dailed to teardown DB: %w", err)
-	}
-
-	return nil
-}
-
-func (task *Task) teardownDB() error {
-	db, err := task.MysqlConfig.openAndPing(1)
-
-	if err != nil {
-		return fmt.Errorf("connection error: %w", err)
-	}
-
-	defer db.Close()
-	_, err = db.Exec(fmt.Sprintf("DROP DATABASE `%s`", task.MysqlConfig.DBName))
-
-	if err != nil {
-		return fmt.Errorf("drop database error: %w", err)
-	}
-
-	return nil
-}
-
 func (task *Task) printProgress(execCnt int, prevExecCnt int, taskStart time.Time, numTermAgents int) {
 	qps := float64(execCnt-prevExecCnt) / ProgressReportPeriod
 	elapsedTime := time.Since(taskStart)
@@ -344,7 +317,6 @@ func (task *Task) trapSigint(ctx context.Context, cancel context.CancelFunc, eg 
 		case <-sgnlCh:
 			cancel()
 			_ = eg.Wait()
-			_ = task.teardownDB()
 			os.Exit(130)
 		}
 	}()
