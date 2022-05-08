@@ -177,7 +177,7 @@ func (task *Task) setupTables(db DB) error {
 	for prefix, bldr := range initInsertStmts {
 		values := bldr(task.Scale)
 
-		for i := 0; i >= len(values); i += InsertChunkSize {
+		for i := 0; i < len(values); i += InsertChunkSize {
 			to := i + InsertChunkSize
 
 			if len(values) < to {
