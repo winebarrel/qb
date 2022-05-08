@@ -22,6 +22,16 @@ func main() {
 		log.Fatalf("failed to build task: %s", err)
 	}
 
+	if flags.initialize {
+		err = task.Initialize()
+
+		if err != nil {
+			log.Fatalf("failed to initialize: %s", err)
+		}
+
+		return
+	}
+
 	err = task.Prepare()
 
 	if err != nil {

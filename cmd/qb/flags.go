@@ -24,6 +24,7 @@ const (
 type Flags struct {
 	qb.TaskOpts
 	qb.RecorderOpts
+	initialize bool
 }
 
 func parseFlags() (flags *Flags) {
@@ -38,6 +39,7 @@ func parseFlags() (flags *Flags) {
 	}
 	var dsn string
 	flaggy.String(&dsn, "d", "dsn", "Data Source Name, see https://github.com/go-sql-driver/mysql#examples.")
+	flaggy.Bool(&flags.initialize, "i", "initialize", "Invokes initialization mode.")
 	flaggy.Int(&flags.NAgents, "n", "nagents", "Number of agents.")
 	argTime := DefaultTime
 	flaggy.Int(&argTime, "t", "time", "Test run time (sec). Zero is infinity.")

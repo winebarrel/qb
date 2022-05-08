@@ -108,12 +108,6 @@ func NewTask(taskOpts *TaskOpts, recOpts *RecorderOpts) (*Task, error) {
 }
 
 func (task *Task) Prepare() error {
-	err := task.setupDB()
-
-	if err != nil {
-		return fmt.Errorf("failed to setup DB: %w", err)
-	}
-
 	for _, agent := range task.agents {
 		if err := agent.prepare(task.NAgents); err != nil {
 			return fmt.Errorf("failed to prepare Agent: %w", err)
@@ -123,7 +117,7 @@ func (task *Task) Prepare() error {
 	return nil
 }
 
-func (task *Task) setupDB() error {
+func (task *Task) Initialize() error {
 	// Temporarily empty the DB name
 	orgDBName := task.MysqlConfig.DBName
 	task.MysqlConfig.DBName = ""
