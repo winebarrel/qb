@@ -1,0 +1,5 @@
+/qb
+/qb.exe
+*.gz
+*.zip
+*.sha1sum

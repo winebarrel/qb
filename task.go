@@ -1,0 +1,347 @@
+package qb
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/signal"
+	"strings"
+	"sync/atomic"
+	"time"
+
+	"github.com/google/uuid"
+	"golang.org/x/sync/errgroup"
+	"golang.org/x/term"
+)
+
+const (
+	ProgressReportPeriod = 1
+	NBranches            = 1
+	NTellers             = 10
+	NAccounts            = 100000
+)
+
+var initCreateStmts = []string{
+	"CREATE TABLE qb_history (tid int, bid int, aid bigint, delta int, mtime timestamp, filler char(22))",
+	"CREATE TABLE qb_tellers (tid int NOT NULL, bid int, tbalance int, filler char(84))",
+	"CREATE TABLE qb_accounts (aid bigint NOT NULL, bid int, abalance int, filler char(84))",
+	"CREATE TABLE qb_branches (bid int NOT NULL, bbalance int, filler char(88))",
+}
+
+var initAnalyzeStmts = []string{
+	"ANALYZE TABLE qb_history",
+	"ANALYZE TABLE qb_tellers",
+	"ANALYZE TABLE qb_accounts",
+	"ANALYZE TABLE qb_branches",
+}
+
+var initInsertStmts = map[string]func(n int) string{
+	"INSERT INTO qb_branches (bid, bbalance) VALUES ": func(n int) string {
+		min := NBranches*n + 1
+		max := NBranches * (n + 1)
+		values := make([]string, 0, n)
+
+		for i := min; i <= max; i++ {
+			values = append(values, fmt.Sprintf("(%d, 0)", i))
+		}
+
+		return strings.Join(values, ",")
+	},
+	"INSERT INTO qb_tellers (tid, bid, tbalance) VALUES ": func(n int) string {
+		min := NTellers*n + 1
+		max := NTellers * (n + 1)
+		values := make([]string, 0, n)
+
+		for i := min; i <= max; i++ {
+			values = append(values, fmt.Sprintf("(%d, (%d - 1) / %d + 1, 0)", i, i, NTellers))
+		}
+
+		return strings.Join(values, ",")
+	},
+	"INSERT INTO qb_accounts (aid, bid, abalance, filler) VALUES ": func(n int) string {
+		min := NAccounts*n + 1
+		max := NAccounts * (n + 1)
+		values := make([]string, 0, n)
+
+		for i := min; i <= max; i++ {
+			values = append(values, fmt.Sprintf("(%d, (%d - 1) / %d + 1, 0, '')", i, i, NAccounts))
+		}
+
+		return strings.Join(values, ",")
+	},
+}
+
+type TaskOpts struct {
+	MysqlConfig     *MysqlConfig `json:"-"`
+	NAgents         int
+	Time            time.Duration `json:"-"`
+	Rate            int
+	TransactionType string
+	Scale           int
+	Engine          string
+	OnlyPrint       bool `json:"-"`
+	NoProgress      bool `json:"-"`
+}
+
+type Task struct {
+	*TaskOpts
+	agents  []*Agent
+	recOpts *RecorderOpts
+}
+
+func NewTask(taskOpts *TaskOpts, recOpts *RecorderOpts) (*Task, error) {
+	agents := make([]*Agent, taskOpts.NAgents)
+
+	stmts, err := NewScript(taskOpts.TransactionType, taskOpts.NAgents)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to build script: %w", err)
+	}
+
+	for i := 0; i < taskOpts.NAgents; i++ {
+		agents[i] = newAgent(i, taskOpts.MysqlConfig, taskOpts, stmts)
+	}
+
+	return &Task{
+		TaskOpts: taskOpts,
+		agents:   agents,
+		recOpts:  recOpts,
+	}, nil
+}
+
+func (task *Task) Prepare() error {
+	err := task.setupDB()
+
+	if err != nil {
+		return fmt.Errorf("failed to setup DB: %w", err)
+	}
+
+	for _, agent := range task.agents {
+		if err := agent.prepare(task.NAgents); err != nil {
+			return fmt.Errorf("failed to prepare Agent: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (task *Task) setupDB() error {
+	// Temporarily empty the DB name
+	orgDBName := task.MysqlConfig.DBName
+	task.MysqlConfig.DBName = ""
+
+	db, err := task.MysqlConfig.openAndPing(1)
+
+	if err != nil {
+		return fmt.Errorf("connection error: %w", err)
+	}
+
+	if task.Engine != "" {
+		_, err = db.Exec(fmt.Sprintf("SET default_storage_engine = %s", task.Engine))
+
+		if err != nil {
+			return fmt.Errorf("set default_storage_engine error: %w", err)
+		}
+	}
+
+	defer db.Close()
+	task.MysqlConfig.DBName = orgDBName
+
+	_, err = db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS `%s`", task.MysqlConfig.DBName))
+
+	if err != nil {
+		return fmt.Errorf("drop database error: %w", err)
+	}
+
+	_, err = db.Exec(fmt.Sprintf("CREATE DATABASE `%s`", task.MysqlConfig.DBName))
+
+	if err != nil {
+		return fmt.Errorf("create database error: %w", err)
+	}
+
+	_, err = db.Exec(fmt.Sprintf("USE `%s`", task.MysqlConfig.DBName))
+
+	if err != nil {
+		return fmt.Errorf("use database error: %w", err)
+	}
+
+	return task.setupTables(db)
+}
+
+func (task *Task) setupTables(db DB) error {
+	for _, stmt := range initCreateStmts {
+		_, err := db.Exec(stmt)
+
+		if err != nil {
+			return fmt.Errorf("create table error (query=%s): %w", stmt, err)
+		}
+	}
+
+	for prefix, values := range initInsertStmts {
+		for n := 0; n < task.Scale; n++ {
+			stmt := prefix + values(n)
+			_, err := db.Exec(stmt)
+
+			if err != nil {
+				return fmt.Errorf("insert data error (query=%s): %w", stmt, err)
+			}
+		}
+	}
+
+	for _, stmt := range initAnalyzeStmts {
+		_, err := db.Exec(stmt)
+
+		if err != nil {
+			return fmt.Errorf("analyze table error (query=%s): %w", stmt, err)
+		}
+	}
+
+	return nil
+}
+
+func (task *Task) Run() (*Recorder, error) {
+	uuid, _ := uuid.NewRandom()
+	token := uuid.String()
+	rec := newRecorder(task.recOpts, task.TaskOpts, token)
+
+	defer func() {
+		rec.close()
+
+		for _, agent := range task.agents {
+			err := agent.close()
+
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "[WARN] failed to close agent: %s", err)
+			}
+		}
+	}()
+
+	eg, ctxWithoutCancel := errgroup.WithContext(context.Background())
+	ctx, cancel := context.WithCancel(ctxWithoutCancel)
+	progressTick := time.NewTicker(ProgressReportPeriod * time.Second)
+	rec.start(task.NAgents * 3)
+	var numTermAgents int32
+
+	// Variables for progress line
+	taskStart := time.Now()
+	prevExecCnt := 0
+
+	// Run agents
+	for _, v := range task.agents {
+		agent := v
+		eg.Go(func() error {
+			err := agent.run(ctx, rec, token)
+			atomic.AddInt32(&numTermAgents, 1)
+			return err
+		})
+	}
+
+	// Periodic report progress
+	go func() {
+	LOOP:
+		for {
+			select {
+			case <-ctx.Done():
+				progressTick.Stop()
+				break LOOP
+			case <-progressTick.C:
+				if !task.NoProgress && !task.OnlyPrint {
+					execCnt := rec.Count()
+					termAgentCnt := int(atomic.LoadInt32(&numTermAgents))
+					task.printProgress(execCnt, prevExecCnt, taskStart, termAgentCnt)
+					prevExecCnt = execCnt
+				}
+			}
+		}
+	}()
+
+	// Time-out processing
+	// NOTE: If it is zero, it will not time out
+	if task.Time > 0 {
+		go func() {
+			select {
+			case <-ctx.Done():
+				// Nothing to do
+			case <-time.After(task.Time):
+				cancel()
+			}
+		}()
+	}
+
+	task.trapSigint(ctx, cancel, eg)
+	err := eg.Wait()
+	cancel()
+
+	// Clear progress line
+	if !task.NoProgress || !task.OnlyPrint {
+		fmt.Fprintf(os.Stderr, "\r\n\n")
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("error during agent running: %w", err)
+	}
+
+	return rec, nil
+}
+
+func (task *Task) Close() error {
+	err := task.teardownDB()
+
+	if err != nil {
+		return fmt.Errorf("dailed to teardown DB: %w", err)
+	}
+
+	return nil
+}
+
+func (task *Task) teardownDB() error {
+	db, err := task.MysqlConfig.openAndPing(1)
+
+	if err != nil {
+		return fmt.Errorf("connection error: %w", err)
+	}
+
+	defer db.Close()
+	_, err = db.Exec(fmt.Sprintf("DROP DATABASE `%s`", task.MysqlConfig.DBName))
+
+	if err != nil {
+		return fmt.Errorf("drop database error: %w", err)
+	}
+
+	return nil
+}
+
+func (task *Task) printProgress(execCnt int, prevExecCnt int, taskStart time.Time, numTermAgents int) {
+	qps := float64(execCnt-prevExecCnt) / ProgressReportPeriod
+	elapsedTime := time.Since(taskStart)
+	numRunAgents := task.NAgents - int(numTermAgents)
+	termWidth, _, err := term.GetSize(0)
+
+	if err != nil {
+		panic("Failed to get terminal width: " + err.Error())
+	}
+
+	elapsedTime = elapsedTime.Round(time.Second)
+	min := elapsedTime / time.Minute
+	sec := (elapsedTime - min*time.Minute) / time.Second
+	progressLine := fmt.Sprintf("%02d:%02d | %d agents / run %d queries (%.0f qps)", min, sec, numRunAgents, execCnt, qps)
+	fmt.Fprintf(os.Stderr, "\r%-*s", termWidth, progressLine)
+}
+
+func (task *Task) trapSigint(ctx context.Context, cancel context.CancelFunc, eg *errgroup.Group) {
+	// SIGINT
+	sgnlCh := make(chan os.Signal, 1)
+	signal.Notify(sgnlCh, os.Interrupt)
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			// Nothing to do
+		case <-sgnlCh:
+			cancel()
+			_ = eg.Wait()
+			_ = task.teardownDB()
+			os.Exit(130)
+		}
+	}()
+}
