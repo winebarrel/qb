@@ -192,6 +192,7 @@ func (task *Task) setupTables(db DB) error {
 		}
 	}
 
+	log.Println("analyzing tables...")
 	for _, stmt := range initAnalyzeStmts {
 		_, err := db.Exec(stmt)
 
