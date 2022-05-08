@@ -18,11 +18,11 @@ type RecorderReport struct {
 	Token       string
 	GOMAXPROCS  int
 	QueryCount  int
-	AvgQPS      float64
-	MaxQPS      float64
-	MinQPS      float64
-	MedianQPS   float64
-	ExpectedQPS int
+	AvgTPS      float64
+	MaxTPS      float64
+	MinTPS      float64
+	MedianTPS   float64
+	ExpectedTPS int
 	Response    *tachymeter.Metrics
 }
 
@@ -40,13 +40,15 @@ type Recorder struct {
 	token      string
 	channel    chan []recorderDataPoint
 	dataPoints []recorderDataPoint
+	stmtSize   int
 }
 
-func newRecorder(recOpts *RecorderOpts, taskOpts *TaskOpts, token string) *Recorder {
+func newRecorder(recOpts *RecorderOpts, taskOpts *TaskOpts, token string, stmtSize int) *Recorder {
 	return &Recorder{
 		RecorderOpts: *recOpts,
 		TaskOpts:     *taskOpts,
 		token:        token,
+		stmtSize:     stmtSize,
 	}
 }
 
@@ -75,7 +77,7 @@ func (rec *Recorder) close() {
 	rec.finishedAt = time.Now()
 }
 
-func (rec *Recorder) qpsHist() []float64 {
+func (rec *Recorder) tpsHist() []float64 {
 	recDps := rec.dataPoints
 
 	if len(recDps) == 0 {
@@ -108,30 +110,30 @@ func (rec *Recorder) qpsHist() []float64 {
 }
 
 func (rec *Recorder) qps() (minQPS float64, maxQPS float64, medianQPS float64) {
-	qpsHist := rec.qpsHist()
+	tpsHist := rec.tpsHist()
 
-	if len(qpsHist) == 0 {
+	if len(tpsHist) == 0 {
 		return
 	}
 
-	sort.Slice(qpsHist, func(i, j int) bool {
-		return qpsHist[i] < qpsHist[j]
+	sort.Slice(tpsHist, func(i, j int) bool {
+		return tpsHist[i] < tpsHist[j]
 	})
 
-	minQPS = qpsHist[0]
-	maxQPS = qpsHist[len(qpsHist)-1]
+	minQPS = tpsHist[0]
+	maxQPS = tpsHist[len(tpsHist)-1]
 
-	median := len(qpsHist) / 2
+	median := len(tpsHist) / 2
 	medianNext := median + 1
 
-	if len(qpsHist) == 1 {
-		medianQPS = qpsHist[0]
-	} else if len(qpsHist) == 2 {
-		medianQPS = (qpsHist[0] + qpsHist[1]) / 2
-	} else if len(qpsHist)%2 == 0 {
-		medianQPS = (qpsHist[median] + qpsHist[medianNext]) / 2
+	if len(tpsHist) == 1 {
+		medianQPS = tpsHist[0]
+	} else if len(tpsHist) == 2 {
+		medianQPS = (tpsHist[0] + tpsHist[1]) / 2
+	} else if len(tpsHist)%2 == 0 {
+		medianQPS = (tpsHist[median] + tpsHist[medianNext]) / 2
 	} else {
-		medianQPS = qpsHist[medianNext]
+		medianQPS = tpsHist[medianNext]
 	}
 
 	return
@@ -159,8 +161,8 @@ func (rec *Recorder) Report() (rr *RecorderReport) {
 		Token:       rec.token,
 		GOMAXPROCS:  runtime.GOMAXPROCS(0),
 		QueryCount:  queryCnt,
-		AvgQPS:      float64(queryCnt) * float64(time.Second) / float64(nanoElapsed),
-		ExpectedQPS: rec.NAgents * rec.Rate,
+		AvgTPS:      float64(queryCnt) * float64(time.Second) / float64(nanoElapsed) / float64(rec.stmtSize),
+		ExpectedTPS: rec.NAgents * rec.Rate,
 	}
 
 	t := tachymeter.New(&tachymeter.Config{
@@ -174,7 +176,10 @@ func (rec *Recorder) Report() (rr *RecorderReport) {
 	}
 
 	rr.Response = t.Calc()
-	rr.MinQPS, rr.MaxQPS, rr.MedianQPS = rec.qps()
+	minQPS, maxQPS, medianQPS := rec.qps()
+	rr.MinTPS = minQPS / float64(rec.stmtSize)
+	rr.MaxTPS = maxQPS / float64(rec.stmtSize)
+	rr.MedianTPS = medianQPS / float64(rec.stmtSize)
 
 	return
 }

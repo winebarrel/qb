@@ -80,8 +80,9 @@ type TaskOpts struct {
 
 type Task struct {
 	*TaskOpts
-	agents  []*Agent
-	recOpts *RecorderOpts
+	agents   []*Agent
+	recOpts  *RecorderOpts
+	stmtSize int
 }
 
 func NewTask(taskOpts *TaskOpts, recOpts *RecorderOpts) (*Task, error) {
@@ -101,6 +102,7 @@ func NewTask(taskOpts *TaskOpts, recOpts *RecorderOpts) (*Task, error) {
 		TaskOpts: taskOpts,
 		agents:   agents,
 		recOpts:  recOpts,
+		stmtSize: len(stmts),
 	}, nil
 }
 
@@ -205,7 +207,7 @@ func (task *Task) setupTables(db DB) error {
 func (task *Task) Run() (*Recorder, error) {
 	uuid, _ := uuid.NewRandom()
 	token := uuid.String()
-	rec := newRecorder(task.recOpts, task.TaskOpts, token)
+	rec := newRecorder(task.recOpts, task.TaskOpts, token, task.stmtSize)
 
 	defer func() {
 		rec.close()
@@ -327,7 +329,7 @@ func (task *Task) printProgress(execCnt int, prevExecCnt int, taskStart time.Tim
 	elapsedTime = elapsedTime.Round(time.Second)
 	min := elapsedTime / time.Minute
 	sec := (elapsedTime - min*time.Minute) / time.Second
-	progressLine := fmt.Sprintf("%02d:%02d | %d agents / run %d queries (%.0f qps)", min, sec, numRunAgents, execCnt, qps)
+	progressLine := fmt.Sprintf("%02d:%02d | %d agents / run %d queries (%.0f tps)", min, sec, numRunAgents, execCnt, qps/float64(task.stmtSize))
 	fmt.Fprintf(os.Stderr, "\r%-*s", termWidth, progressLine)
 }
 
