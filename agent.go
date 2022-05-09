@@ -39,7 +39,7 @@ func (agent *Agent) prepare(maxIdleConns int) error {
 	_, err = db.Exec("SET autocommit = 0")
 
 	if err != nil {
-		return fmt.Errorf("disable autocommit error: %w", err)
+		return fmt.Errorf("failed to disable autocommit: %w", err)
 	}
 
 	agent.db = db
