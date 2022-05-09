@@ -16,11 +16,12 @@ import (
 )
 
 const (
-	ProgressReportPeriod = 1
-	NBranches            = 1
-	NTellers             = 10
-	NAccounts            = 100000
-	InsertChunkSize      = 50000
+	ProgressReportPeriod      = 1
+	NBranches                 = 1
+	NTellers                  = 10
+	NAccounts                 = 100000
+	InsertChunkSize           = 50000
+	GeneratingDataConcurrency = 30
 )
 
 var initCreateStmts = []string{
@@ -159,10 +160,6 @@ func (task *Task) Initialize() error {
 		return fmt.Errorf("use database error: %w", err)
 	}
 
-	return task.setupTables(db)
-}
-
-func (task *Task) setupTables(db DB) error {
 	log.Println("creating tables...")
 	for _, stmt := range initCreateStmts {
 		_, err := db.Exec(stmt)
@@ -173,23 +170,15 @@ func (task *Task) setupTables(db DB) error {
 	}
 
 	log.Println("generating data...")
-	for prefix, bldr := range initInsertStmts {
-		values := bldr(task.Scale)
+	ctxWithoutCancel := context.Background()
+	ctx, cancel := context.WithCancel(ctxWithoutCancel)
+	eg := task.setupTables(ctx)
+	task.trapSigint(ctx, cancel, eg)
+	err = eg.Wait()
+	cancel()
 
-		for i := 0; i < len(values); i += InsertChunkSize {
-			to := i + InsertChunkSize
-
-			if len(values) < to {
-				to = len(values)
-			}
-
-			stmt := prefix + strings.Join(values[i:to], ",")
-			_, err := db.Exec(stmt)
-
-			if err != nil {
-				return fmt.Errorf("insert data error (query=%s): %w", stmt, err)
-			}
-		}
+	if err != nil {
+		return fmt.Errorf("generating data error: %w", err)
 	}
 
 	log.Println("analyzing tables...")
@@ -202,6 +191,53 @@ func (task *Task) setupTables(db DB) error {
 	}
 
 	return nil
+}
+
+func (task *Task) setupTables(ctx context.Context) *errgroup.Group {
+	sem := make(chan struct{}, GeneratingDataConcurrency)
+	eg, ctx := errgroup.WithContext(ctx)
+
+	for prefix, bldr := range initInsertStmts {
+		values := bldr(task.Scale)
+
+		for i := 0; i < len(values); i += InsertChunkSize {
+			to := i + InsertChunkSize
+
+			if len(values) < to {
+				to = len(values)
+			}
+
+			stmt := prefix + strings.Join(values[i:to], ",")
+			sem <- struct{}{}
+
+			eg.Go(func() error {
+				defer func() { <-sem }()
+				db, err := task.MysqlConfig.openAndPing(1)
+
+				if err != nil {
+					return fmt.Errorf("connection error: %w", err)
+				}
+
+				defer db.Close()
+
+				select {
+				case <-ctx.Done():
+					return nil
+				default:
+				}
+
+				_, err = db.Exec(stmt)
+
+				if err != nil {
+					return fmt.Errorf("insert data error (query=%s): %w", stmt, err)
+				}
+
+				return nil
+			})
+		}
+	}
+
+	return eg
 }
 
 func (task *Task) Run() (*Recorder, error) {
