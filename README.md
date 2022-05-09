@@ -5,7 +5,7 @@ qb is a MySQL benchmarking tool using TPC-B(pgbench).
 ## Usage
 
 ```
-qb - MySQL benchmarking tool using TCP-B(pgbench).
+qb - MySQL benchmarking tool using TCP-B(same as pgbench).
 
   Flags:
        --version       Displays the program version string.
@@ -15,7 +15,7 @@ qb - MySQL benchmarking tool using TCP-B(pgbench).
     -n --nagents       Number of agents. (default: 1)
     -t --time          Test run time (sec). Zero is infinity. (default: 60)
     -r --rate          Rate limit for each agent (qps). Zero is unlimited. (default: 0)
-    -T --type          Transaction type (tpcb-like). (default: tpcb-like)
+    -T --type          Transaction type (tpcb-like,simple-update,select-only). (default: tpcb-like)
     -s --scale         Scaling factor. (default: 1)
     -e --engine        Engine of the table to be created.
        --hinterval     Histogram interval, e.g. '100ms'. (default: 0)
@@ -32,78 +32,78 @@ generating data...
 analyzing tables...
 
 $ qb -d root@/ -n 10
-01:00 | 10 agents / run 2603958 queries (2559 tps)
+01:00 | 1 agents / run 742111 queries (1015 tps)
 
 {
   "DSN": "root@/",
-  "StartedAt": "2022-05-08T17:36:46.173678+09:00",
-  "FinishedAt": "2022-05-08T17:37:46.177411+09:00",
+  "StartedAt": "2022-05-09T17:47:45.535164+09:00",
+  "FinishedAt": "2022-05-09T17:48:45.536835+09:00",
   "ElapsedTime": 60,
-  "NAgents": 10,
+  "NAgents": 1,
   "Rate": 0,
   "TransactionType": "tpcb-like",
   "Scale": 1,
   "Engine": "",
-  "Token": "4e5626d2-0e42-4159-a98b-61b4d6b9e7da",
+  "Token": "8c5c8e33-0356-42f0-b95b-5e47e74a7e85",
   "GOMAXPROCS": 16,
-  "QueryCount": 2613797,
-  "AvgTPS": 4840.1553833887765,
-  "MaxTPS": 6650.777777777777,
-  "MinTPS": 0.2222222222222222,
-  "MedianTPS": 5125.222222222223,
+  "QueryCount": 742111,
+  "AvgTPS": 1124.395525948911,
+  "MaxTPS": 1219,
+  "MinTPS": 1012.6363636363636,
+  "MedianTPS": 1152.2727272727273,
   "ExpectedTPS": 0,
   "Response": {
     "Time": {
-      "Cumulative": "9m52.304185844s",
-      "HMean": "158.97µs",
-      "Avg": "226.606µs",
-      "P50": "163.068µs",
-      "P75": "232.565µs",
-      "P95": "436.563µs",
-      "P99": "782.877µs",
-      "P999": "6.11045ms",
-      "Long5p": "1.101047ms",
-      "Short5p": "82.425µs",
-      "Max": "72.844002ms",
-      "Min": "846ns",
-      "Range": "72.843156ms",
-      "StdDev": "645.026µs"
+      "Cumulative": "58.485125316s",
+      "HMean": "64.226µs",
+      "Avg": "78.809µs",
+      "P50": "69.669µs",
+      "P75": "83.322µs",
+      "P95": "162.796µs",
+      "P99": "215.801µs",
+      "P999": "317.144µs",
+      "Long5p": "213.344µs",
+      "Short5p": "36.897µs",
+      "Max": "36.677174ms",
+      "Min": "30.205µs",
+      "Range": "36.646969ms",
+      "StdDev": "133.311µs"
     },
     "Rate": {
-      "Second": 4412.930150536564
+      "Second": 12688.884498243142
     },
-    "Samples": 2613797,
-    "Count": 2613797,
+    "Samples": 742111,
+    "Count": 742111,
     "Histogram": [
       {
-        "0s - 7.285ms": 2612000
+        "30µs - 3.694ms": 742047
       },
       {
-        "7.285ms - 14.569ms": 1167
+        "3.694ms - 7.359ms": 49
       },
       {
-        "14.569ms - 21.853ms": 142
+        "7.359ms - 11.024ms": 1
       },
       {
-        "21.853ms - 29.138ms": 193
+        "11.024ms - 14.688ms": 1
       },
       {
-        "29.138ms - 36.422ms": 88
+        "14.688ms - 18.353ms": 1
       },
       {
-        "36.422ms - 43.706ms": 43
+        "18.353ms - 22.018ms": 2
       },
       {
-        "43.706ms - 50.991ms": 71
+        "22.018ms - 25.683ms": 1
       },
       {
-        "50.991ms - 58.275ms": 74
+        "25.683ms - 29.347ms": 4
       },
       {
-        "58.275ms - 65.559ms": 18
+        "29.347ms - 33.012ms": 3
       },
       {
-        "65.559ms - 72.844ms": 1
+        "33.012ms - 36.677ms": 2
       }
     ]
   }
