@@ -44,7 +44,7 @@ func parseFlags() (flags *Flags) {
 	argTime := DefaultTime
 	flaggy.Int(&argTime, "t", "time", "Test run time (sec). Zero is infinity.")
 	flaggy.Int(&flags.Rate, "r", "rate", "Rate limit for each agent (qps). Zero is unlimited.")
-	flaggy.String(&flags.TransactionType, "T", "type", fmt.Sprintf("Transaction type (%s).", strings.Join(qb.ScriptNames(), "/")))
+	flaggy.String(&flags.TransactionType, "T", "type", fmt.Sprintf("Transaction type (%s).", strings.Join(qb.ScriptNames(), ",")))
 	flaggy.Int(&flags.Scale, "s", "scale", "Scaling factor.")
 	flaggy.String(&flags.Engine, "e", "engine", "Engine of the table to be created.")
 	hinterval := "0"
