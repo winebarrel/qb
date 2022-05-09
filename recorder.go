@@ -162,7 +162,7 @@ func (rec *Recorder) Report() (rr *RecorderReport) {
 		GOMAXPROCS:  runtime.GOMAXPROCS(0),
 		QueryCount:  queryCnt,
 		AvgTPS:      float64(queryCnt) * float64(time.Second) / float64(nanoElapsed) / float64(rec.stmtSize),
-		ExpectedTPS: rec.NAgents * rec.Rate,
+		ExpectedTPS: rec.NAgents * rec.Rate / rec.stmtSize,
 	}
 
 	t := tachymeter.New(&tachymeter.Config{
