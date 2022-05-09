@@ -29,7 +29,7 @@ type Flags struct {
 
 func parseFlags() (flags *Flags) {
 	flaggy.SetVersion(version)
-	flaggy.SetDescription("MySQL benchmarking tool using TCP-B(pgbench).")
+	flaggy.SetDescription("MySQL benchmarking tool using TCP-B(same as pgbench).")
 	flags = &Flags{
 		TaskOpts: qb.TaskOpts{
 			NAgents:         DefaultNAgents,
