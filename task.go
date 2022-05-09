@@ -25,7 +25,7 @@ const (
 )
 
 var initCreateStmts = []string{
-	"CREATE TABLE qb_history (tid int, bid int, aid bigint, delta int, mtime timestamp, filler char(22))",
+	"CREATE TABLE qb_history (id int PRIMARY KEY NOT NULL AUTO_INCREMENT, tid int, bid int, aid bigint, delta int, mtime timestamp, filler char(22))",
 	"CREATE TABLE qb_tellers (tid int PRIMARY KEY NOT NULL, bid int, tbalance int, filler char(84))",
 	"CREATE TABLE qb_accounts (aid bigint PRIMARY KEY NOT NULL, bid int, abalance int, filler char(84))",
 	"CREATE TABLE qb_branches (bid int PRIMARY KEY NOT NULL, bbalance int, filler char(88))",
