@@ -73,7 +73,7 @@ type TaskOpts struct {
 	Time            time.Duration `json:"-"`
 	Rate            int
 	TransactionType string
-	Scale           int
+	Scale           int `json:"-"`
 	Engine          string
 	OnlyPrint       bool `json:"-"`
 	NoProgress      bool `json:"-"`

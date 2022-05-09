@@ -42,7 +42,6 @@ $ qb -d root@/ -n 10
   "NAgents": 10,
   "Rate": 0,
   "TransactionType": "tpcb-like",
-  "Scale": 1,
   "Engine": "",
   "Token": "1665fb47-eb84-4ef4-9f12-f8ccc84b9248",
   "GOMAXPROCS": 16,
