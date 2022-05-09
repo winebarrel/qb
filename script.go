@@ -7,10 +7,10 @@ import (
 var stmtBldrByName = map[string]func(scale int) []string{
 	"tpcb-like": func(scale int) []string {
 		return []string{
-			fmt.Sprintf("SET @aid = FLOOR(1 + RAND() * (%d + 1))", NAccounts*scale),
-			fmt.Sprintf("SET @bid = FLOOR(1 + RAND() * (%d + 1))", NBranches*scale),
-			fmt.Sprintf("SET @tid = FLOOR(1 + RAND() * (%d + 1))", NTellers*scale),
-			"SET @delta = FLOOR(-5000 + RAND() * 5001)",
+			fmt.Sprintf("SET @aid = CEIL(RAND() * %d)", NAccounts*scale),
+			fmt.Sprintf("SET @bid = CEIL(RAND() * %d)", NBranches*scale),
+			fmt.Sprintf("SET @tid = CEIL(RAND() * %d)", NTellers*scale),
+			"SET @delta = FLOOR(RAND() * 10001) - 5000",
 			"BEGIN",
 			"UPDATE qb_accounts SET abalance = abalance + @delta WHERE aid = @aid",
 			"SELECT abalance FROM qb_accounts WHERE aid = @aid",
@@ -22,10 +22,10 @@ var stmtBldrByName = map[string]func(scale int) []string{
 	},
 	"simple-update": func(scale int) []string {
 		return []string{
-			fmt.Sprintf("SET @aid = FLOOR(1 + RAND() * (%d + 1))", NAccounts*scale),
-			fmt.Sprintf("SET @bid = FLOOR(1 + RAND() * (%d + 1))", NBranches*scale),
-			fmt.Sprintf("SET @tid = FLOOR(1 + RAND() * (%d + 1))", NTellers*scale),
-			"SET @delta = FLOOR(-5000 + RAND() * 5001)",
+			fmt.Sprintf("SET @aid = CEIL(RAND() * %d)", NAccounts*scale),
+			fmt.Sprintf("SET @bid = CEIL(RAND() * %d)", NBranches*scale),
+			fmt.Sprintf("SET @tid = CEIL(RAND() * %d)", NTellers*scale),
+			"SET @delta = FLOOR(RAND() * 10001) - 5000",
 			"BEGIN",
 			"UPDATE qb_accounts SET abalance = abalance + @delta WHERE aid = @aid",
 			"SELECT abalance FROM qb_accounts WHERE aid = @aid",
@@ -35,7 +35,7 @@ var stmtBldrByName = map[string]func(scale int) []string{
 	},
 	"select-only": func(scale int) []string {
 		return []string{
-			fmt.Sprintf("SET @aid = FLOOR(1 + RAND() * (%d + 1))", NAccounts*scale),
+			fmt.Sprintf("SET @aid = CEIL(RAND() * %d)", NAccounts*scale),
 			"SELECT abalance FROM qb_accounts WHERE aid = @aid",
 		}
 	},
