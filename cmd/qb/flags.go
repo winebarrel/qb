@@ -51,6 +51,8 @@ func parseFlags() (flags *Flags) {
 	flaggy.String(&hinterval, "", "hinterval", "Histogram interval, e.g. '100ms'.")
 	flaggy.Bool(&flags.OnlyPrint, "", "only-print", "Just print SQL without connecting to DB.")
 	flaggy.Bool(&flags.NoProgress, "", "no-progress", "Do not show progress.")
+	var caCertPath string
+	flaggy.String(&caCertPath, "c", "ca-cert", "path to ca cert")
 	flaggy.Parse()
 
 	if len(os.Args) <= 1 {
@@ -72,6 +74,15 @@ func parseFlags() (flags *Flags) {
 
 	if myCfg.DBName == "" {
 		myCfg.DBName = DefaultDBName
+	}
+
+	// Custom CA Cert Path
+	if caCertPath != "" {
+		err := qb.SetupCustomTLS(myCfg, caCertPath)
+
+		if err != nil {
+			printErrorAndExit("Failed to setup custom TLS: " + err.Error())
+		}
 	}
 
 	flags.MysqlConfig = &qb.MysqlConfig{

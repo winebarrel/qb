@@ -2,10 +2,40 @@ package qb
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"database/sql"
+	"errors"
+	"os"
 
 	"github.com/go-sql-driver/mysql"
 )
+
+func SetupCustomTLS(cfg *mysql.Config, caCertPath string) error {
+	rootCertPool := x509.NewCertPool()
+	pem, err := os.ReadFile(caCertPath)
+
+	if err != nil {
+		return err
+	}
+
+	if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
+		return errors.New("Failed to append PEM.")
+	}
+
+	key := "custom"
+
+	err = mysql.RegisterTLSConfig(key, &tls.Config{
+		RootCAs: rootCertPool,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	cfg.TLSConfig = key
+	return nil
+}
 
 type MysqlConfig struct {
 	*mysql.Config
