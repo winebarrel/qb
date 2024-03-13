@@ -11,29 +11,47 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
-func SetupCustomTLS(cfg *mysql.Config, caCertPath string) error {
-	rootCertPool := x509.NewCertPool()
-	pem, err := os.ReadFile(caCertPath)
+type CertOptions struct {
+	CaCertPath     string
+	ClientCertPath string
+	ClientKeyPath  string
+}
 
-	if err != nil {
-		return err
+func SetupCustomTLS(cfg *mysql.Config, certOptions *CertOptions) error {
+	tlsConfig := &tls.Config{}
+
+	if certOptions.CaCertPath != "" {
+		rootCertPool := x509.NewCertPool()
+		pem, err := os.ReadFile(certOptions.CaCertPath)
+
+		if err != nil {
+			return err
+		}
+
+		if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
+			return errors.New("failed to append PEM")
+		}
+
+		tlsConfig.RootCAs = rootCertPool
 	}
 
-	if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
-		return errors.New("Failed to append PEM.")
+	if certOptions.ClientCertPath != "" && certOptions.ClientKeyPath != "" {
+		certs, err := tls.LoadX509KeyPair(certOptions.ClientCertPath, certOptions.ClientKeyPath)
+
+		if err != nil {
+			return err
+		}
+
+		tlsConfig.Certificates = []tls.Certificate{certs}
 	}
 
 	key := "custom"
-
-	err = mysql.RegisterTLSConfig(key, &tls.Config{
-		RootCAs: rootCertPool,
-	})
-
-	if err != nil {
+	if err := mysql.RegisterTLSConfig(key, tlsConfig); err != nil {
 		return err
 	}
 
 	cfg.TLSConfig = key
+
 	return nil
 }
 
