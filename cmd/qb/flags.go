@@ -1,9 +1,10 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -53,11 +54,11 @@ func parseFlags() (flags *Flags) {
 	flaggy.Bool(&flags.OnlyPrint, "", "only-print", "Just print SQL without connecting to DB.")
 	flaggy.Bool(&flags.NoProgress, "", "no-progress", "Do not show progress.")
 	var caCertPath string
-	flaggy.String(&caCertPath, "c", "ca-cert", "absolute path to ca cert")
+	flaggy.String(&caCertPath, "", "ca-cert", "path to ca cert")
 	var clientCertPath string
-	flaggy.String(&clientCertPath, "", "client-cert", "absolute path to client cert (must also send --client-key)")
+	flaggy.String(&clientCertPath, "", "client-cert", "path to client cert")
 	var clientKeyPath string
-	flaggy.String(&clientKeyPath, "", "client-key", "absolute path to client key (must also send --client-cert)")
+	flaggy.String(&clientKeyPath, "", "client-key", "path to client key")
 	flaggy.Parse()
 
 	if len(os.Args) <= 1 {
@@ -82,44 +83,39 @@ func parseFlags() (flags *Flags) {
 	}
 
 	// Custom TLS Configuration
-	var certOptions *qb.CertOptions
-	initCertOptions := func() {
-		if certOptions == nil {
-			certOptions = &qb.CertOptions{}
-		}
-	}
+	tlsConfig := &tls.Config{}
+	var customTLS bool = false
+	if clientCertPath != "" && clientKeyPath != "" {
+		customTLS = true
+		clientCert := make([]tls.Certificate, 0, 1)
+		certs, err := tls.LoadX509KeyPair(clientCertPath, clientKeyPath)
 
-	validatePath := func(certPath string) {
-		if !filepath.IsAbs(certPath) {
-			printErrorAndExit("Cert path must be absolute path. Got " + certPath)
-		}
-	}
-
-	if clientCertPath != "" || clientKeyPath != "" {
-		if !(clientCertPath != "" && clientKeyPath != "") {
-			printErrorAndExit("must send BOTH --client-cert and --client-key")
+		if err != nil {
+			printErrorAndExit("could not load key pair: " + err.Error())
 		}
 
-		validatePath(clientCertPath)
-		validatePath(clientKeyPath)
-
-		initCertOptions()
-		certOptions.ClientCertPath = clientCertPath
-		certOptions.ClientKeyPath = clientKeyPath
+		clientCert = append(clientCert, certs)
+		tlsConfig.Certificates = clientCert
 	}
 
 	if caCertPath != "" {
-		validatePath(caCertPath)
-		initCertOptions()
-		certOptions.CaCertPath = caCertPath
-	}
-
-	if certOptions != nil {
-		err := qb.SetupCustomTLS(myCfg, certOptions)
+		customTLS = true
+		rootCertPool := x509.NewCertPool()
+		pem, err := os.ReadFile(caCertPath)
 
 		if err != nil {
-			printErrorAndExit("Failed to setup custom TLS: " + err.Error())
+			printErrorAndExit("could not read ca cert: " + err.Error())
 		}
+
+		if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
+			printErrorAndExit("failed to append PEM")
+		}
+
+		tlsConfig.RootCAs = rootCertPool
+	}
+
+	if customTLS {
+		mysql.RegisterTLSConfig("custom", tlsConfig)
 	}
 
 	flags.MysqlConfig = &qb.MysqlConfig{
