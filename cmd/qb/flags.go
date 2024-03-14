@@ -54,37 +54,20 @@ func parseFlags() (flags *Flags) {
 	flaggy.Bool(&flags.OnlyPrint, "", "only-print", "Just print SQL without connecting to DB.")
 	flaggy.Bool(&flags.NoProgress, "", "no-progress", "Do not show progress.")
 	var caCertPath string
-	flaggy.String(&caCertPath, "", "ca-cert", "path to ca cert")
+	flaggy.String(&caCertPath, "", "ca-cert", "Path to ca cert. Requires 'tls=custom' in DSN")
 	var clientCertPath string
-	flaggy.String(&clientCertPath, "", "client-cert", "path to client cert")
+	flaggy.String(&clientCertPath, "", "client-cert", "Path to client certificate. Requires 'tls=custom' in DSN.")
 	var clientKeyPath string
-	flaggy.String(&clientKeyPath, "", "client-key", "path to client key")
+	flaggy.String(&clientKeyPath, "", "client-key", "Path to client key. Requires 'tls=custom' in DSN.")
 	flaggy.Parse()
 
 	if len(os.Args) <= 1 {
 		flaggy.ShowHelpAndExit("")
 	}
 
-	// DSN
-	if dsn == "" {
-		printErrorAndExit("'--dsn(-d)' is required")
-	}
-
-	myCfg, err := mysql.ParseDSN(dsn)
-
-	if err != nil {
-		printErrorAndExit("DSN parsing error: " + err.Error())
-	}
-
-	flags.DSN = dsn
-
-	if myCfg.DBName == "" {
-		myCfg.DBName = DefaultDBName
-	}
-
 	// Custom TLS Configuration
 	tlsConfig := &tls.Config{}
-	var customTLS bool = false
+	var customTLS = false
 	if clientCertPath != "" && clientKeyPath != "" {
 		customTLS = true
 		clientCert := make([]tls.Certificate, 0, 1)
@@ -115,7 +98,28 @@ func parseFlags() (flags *Flags) {
 	}
 
 	if customTLS {
-		mysql.RegisterTLSConfig("custom", tlsConfig)
+		err := mysql.RegisterTLSConfig("custom", tlsConfig)
+
+		if err != nil {
+			printErrorAndExit("failed to register custom tls config: " + err.Error())
+		}
+	}
+
+	// DSN
+	if dsn == "" {
+		printErrorAndExit("'--dsn(-d)' is required")
+	}
+
+	myCfg, err := mysql.ParseDSN(dsn)
+
+	if err != nil {
+		printErrorAndExit("DSN parsing error: " + err.Error())
+	}
+
+	flags.DSN = dsn
+
+	if myCfg.DBName == "" {
+		myCfg.DBName = DefaultDBName
 	}
 
 	flags.MysqlConfig = &qb.MysqlConfig{
