@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"os"
 	"strings"
@@ -51,10 +53,56 @@ func parseFlags() (flags *Flags) {
 	flaggy.String(&hinterval, "", "hinterval", "Histogram interval, e.g. '100ms'.")
 	flaggy.Bool(&flags.OnlyPrint, "", "only-print", "Just print SQL without connecting to DB.")
 	flaggy.Bool(&flags.NoProgress, "", "no-progress", "Do not show progress.")
+	var caCertPath string
+	flaggy.String(&caCertPath, "", "ca-cert", "Path to ca cert. Requires 'tls=custom' in DSN")
+	var clientCertPath string
+	flaggy.String(&clientCertPath, "", "client-cert", "Path to client certificate. Requires 'tls=custom' in DSN.")
+	var clientKeyPath string
+	flaggy.String(&clientKeyPath, "", "client-key", "Path to client key. Requires 'tls=custom' in DSN.")
 	flaggy.Parse()
 
 	if len(os.Args) <= 1 {
 		flaggy.ShowHelpAndExit("")
+	}
+
+	// Custom TLS Configuration
+	tlsConfig := &tls.Config{}
+	var customTLS = false
+	if clientCertPath != "" && clientKeyPath != "" {
+		customTLS = true
+		clientCert := make([]tls.Certificate, 0, 1)
+		certs, err := tls.LoadX509KeyPair(clientCertPath, clientKeyPath)
+
+		if err != nil {
+			printErrorAndExit("could not load key pair: " + err.Error())
+		}
+
+		clientCert = append(clientCert, certs)
+		tlsConfig.Certificates = clientCert
+	}
+
+	if caCertPath != "" {
+		customTLS = true
+		rootCertPool := x509.NewCertPool()
+		pem, err := os.ReadFile(caCertPath)
+
+		if err != nil {
+			printErrorAndExit("could not read ca cert: " + err.Error())
+		}
+
+		if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
+			printErrorAndExit("failed to append PEM")
+		}
+
+		tlsConfig.RootCAs = rootCertPool
+	}
+
+	if customTLS {
+		err := mysql.RegisterTLSConfig("custom", tlsConfig)
+
+		if err != nil {
+			printErrorAndExit("failed to register custom tls config: " + err.Error())
+		}
 	}
 
 	// DSN
