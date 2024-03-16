@@ -23,6 +23,9 @@ qb - MySQL benchmarking tool using TCP-B(same as pgbench).
        --hinterval     Histogram interval, e.g. '100ms'. (default: 0)
        --only-print    Just print SQL without connecting to DB.
        --no-progress   Do not show progress.
+       --ca-cert       Path to ca cert. Requires 'tls=custom' in DSN
+       --client-cert   Path to client certificate. Requires 'tls=custom' in DSN.
+       --client-key    Path to client key. Requires 'tls=custom' in DSN.
 ```
 
 ```
