@@ -16,3 +16,7 @@ vet:
 .PHONY: clean
 clean:
 	rm -f qb qb.exe
+
+.PHONY: lint
+lint:
+	golangci-lint run
