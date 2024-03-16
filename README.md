@@ -1,5 +1,7 @@
 # qb
 
+[![CI](https://github.com/winebarrel/qb/actions/workflows/ci.yml/badge.svg)](https://github.com/winebarrel/qb/actions/workflows/ci.yml)
+
 qb is a MySQL benchmarking tool using TPC-B(pgbench).
 
 ## Usage
