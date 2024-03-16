@@ -1,6 +1,6 @@
 module github.com/winebarrel/qb
 
-go 1.17
+go 1.22.1
 
 require (
 	github.com/go-sql-driver/mysql v1.8.0
