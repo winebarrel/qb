@@ -1,0 +1,21 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":disableDependencyDashboard"
+  ],
+  "postUpdateOptions": [
+    "gomodTidy"
+  ],
+  "packageRules": [
+    {
+      "matchPackageNames": [
+        "github.com/winebarrel/tachymeter"
+      ],
+      "matchManagers": [
+        "gomod"
+      ],
+      "enabled": false
+    }
+  ]
+}
