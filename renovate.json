@@ -6,5 +6,16 @@
   ],
   "postUpdateOptions": [
     "gomodTidy"
+  ],
+  "packageRules": [
+    {
+      "matchPackageNames": [
+        "github.com/winebarrel/tachymeter"
+      ],
+      "matchManagers": [
+        "gomod"
+      ],
+      "enabled": false
+    }
   ]
 }
