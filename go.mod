@@ -9,7 +9,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/integrii/flaggy v1.5.2
 	github.com/winebarrel/tachymeter v0.0.0-20200513080248-97d8fe8db2e3
-	golang.org/x/sync v0.14.0
+	golang.org/x/sync v0.15.0
 	golang.org/x/term v0.32.0
 )
 
