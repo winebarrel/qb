@@ -4,8 +4,8 @@ github.com/go-sql-driver/mysql v1.9.3 h1:U/N249h2WzJ3Ukj8SowVFjdtZKfu9vlLZxjPXV1
 github.com/go-sql-driver/mysql v1.9.3/go.mod h1:qn46aNg1333BRMNU69Lq93t8du/dwxI64Gl8i5p1WMU=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/integrii/flaggy v1.6.0 h1:uqCN1mDnbux18JENxqi/VNaAwStTssEa/DjPVh6vE4g=
-github.com/integrii/flaggy v1.6.0/go.mod h1:ir+1vTHHG4iOyQ4u9ovPA1TPQ+l3pU7Z8c/fd07G4Lg=
+github.com/integrii/flaggy v1.7.1 h1:UTGDWksXL0ilNGWiw6J7KREZZrQVO1ZlRo3svlWzsjc=
+github.com/integrii/flaggy v1.7.1/go.mod h1:QS4c80m87SXG0pmVUT/Lx2RY5EbkLvLp7IKBD2jwcFA=
 github.com/jamiealquiza/tachymeter v2.0.0+incompatible h1:mGiF1DGo8l6vnGT8FXNNcIXht/YmjzfraiUprXYwJ6g=
 github.com/jamiealquiza/tachymeter v2.0.0+incompatible/go.mod h1:Ayf6zPZKEnLsc3winWEXJRkTBhdHo58HODAu1oFJkYU=
 github.com/winebarrel/tachymeter v0.0.0-20200513080248-97d8fe8db2e3 h1:t5ghePxskGmdoLvdDKLFuDTARfYnLvP65UzrTTPE8xU=
