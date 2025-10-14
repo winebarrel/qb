@@ -2,7 +2,7 @@ module github.com/winebarrel/qb
 
 go 1.25
 
-toolchain go1.25.2
+toolchain go1.25.3
 
 require (
 	github.com/go-sql-driver/mysql v1.9.3
