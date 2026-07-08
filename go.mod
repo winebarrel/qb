@@ -10,10 +10,10 @@ require (
 	github.com/integrii/flaggy v1.8.0
 	github.com/winebarrel/tachymeter v0.0.0-20200513080248-97d8fe8db2e3
 	golang.org/x/sync v0.22.0
-	golang.org/x/term v0.44.0
+	golang.org/x/term v0.45.0
 )
 
 require (
 	filippo.io/edwards25519 v1.2.0 // indirect
-	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
 )
