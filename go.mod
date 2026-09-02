@@ -5,7 +5,7 @@ go 1.25.0
 toolchain go1.27.1
 
 require (
-	github.com/go-sql-driver/mysql v1.10.0
+	github.com/go-sql-driver/mysql v1.10.1
 	github.com/google/uuid v1.6.0
 	github.com/integrii/flaggy v1.8.0
 	github.com/winebarrel/tachymeter v0.0.0-20200513080248-97d8fe8db2e3
